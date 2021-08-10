@@ -8,8 +8,10 @@ import (
 	"io/ioutil"
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"text/template"
+	"time"
 
 	"github.com/Masterminds/sprig/v3"
 	"k8s.io/apimachinery/pkg/labels"
@@ -55,6 +57,25 @@ func ExportEnvironments(envs []*v1alpha1.Environment, to string, opts *ExportEnv
 	}
 	if !empty && !opts.Merge {
 		return fmt.Errorf("Output dir `%s` not empty. Pass --merge to ignore this", to)
+	}
+
+	// FOR TESTING, TODO, EXPOSE THESE
+	opts.Opts.CachePath = os.Getenv("TANKA_CACHE_PATH")
+	if value := os.Getenv("TANKA_CACHE_ENVS"); value != "" {
+		regexes := []*regexp.Regexp{}
+		for _, exp := range strings.Split(value, ",") {
+			regex, err := regexp.Compile(exp)
+			if err != nil {
+				return err
+			}
+			regexes = append(regexes, regex)
+		}
+		opts.Opts.CacheEnvRegexes = regexes
+	}
+	if value := os.Getenv("TANKA_WARN_LONG_EVALS"); value != "" {
+		if opts.Opts.WarnLongEvaluations, err = time.ParseDuration(value); err != nil {
+			return err
+		}
 	}
 
 	// get all environments for paths
